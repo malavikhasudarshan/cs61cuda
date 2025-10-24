@@ -22,9 +22,10 @@ You will use Hive machines and CUDA tools for development.
 |-------|-------------|--------|---------------|
 | 1 | Welcome to 61Cuda: implement a simple copy kernel | 10 | Thread indexing, kernel launch basics |
 | 2 | CPU baseline matmul (nested loops) | 15 | Matrix indexing, correctness |
-| 3 | CUDA naive matmul kernel | 35 | Thread-level parallelism; grid/block mapping |
-| 4 | CUDA SIMD matmul kernel | 40 | Data-level parallelism; vectorization |
-| 5 | Performance engineering (optional) | 15 | Creative optimization, leaderboard |
+| 3 | CUDA naive matmul kernel | 30 | Thread-level parallelism; grid/block mapping |
+| 4 | CUDA SIMD matmul kernel | 30 | Data-level parallelism; vectorization |
+| 5 | Documentation and Testing | 15 | Clear reflection answers (assessed on Gradescope) and extensive test cases |
+| 6 | Performance engineering (optional) | 15 | Creative optimization, leaderboard |
 
 Total: 100 required points, 15 extra credit optional
 
