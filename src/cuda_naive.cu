@@ -3,13 +3,14 @@
 
 //naive CUDA kernel
 __global__ void cuda_naive_matmul(float *A, float *B, float *C, int m, int n, int k) {
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-    if (row < m && col < n) {
+    //TODO: fill in the blanks to implement naive matrix multiplication
+    int row = ________________
+    int col = ________________
+    if _________ {
         float sum = 0.0f;
-        for (int e = 0; e < k; ++e)
-            sum += A[row * k + e] * B[e * n + col];
-        C[row * n + col] = sum;
+        for (______________)
+            ______________________
+        C[______________] = ___;
     }
 }
 
