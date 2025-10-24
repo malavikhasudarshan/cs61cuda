@@ -13,7 +13,7 @@ int main() {
 
     //remember to malloc and free these later!
     malloc_matrix(&A, m, k);
-    ...
+    //...
 
     //CPU computation baseline
     std::cout << "Running CPU baseline..." << std::endl;
@@ -26,7 +26,7 @@ int main() {
     //remember to malloc and free these later!
     float *d_A, *d_B, *d_C;
     cudaMalloc(&d_A, sizeof(float) * m * k);
-    ...
+    //...
 
     cudaMemcpy(d_A, A, sizeof(float)*m*k, cudaMemcpyHostToDevice);
     cudaMemcpy(d_B, B, sizeof(float)*k*n, cudaMemcpyHostToDevice);
@@ -45,7 +45,7 @@ int main() {
 
     //remember to free memory!
     free_matrix(A);
-    ...
+    //...
 
     cudaDeviceReset();
     return 0;
