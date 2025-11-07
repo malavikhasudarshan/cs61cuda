@@ -1,23 +1,20 @@
-#include <cuda_runtime.h>
-#include <iostream>
+//TASK 3: NAIVE MATRIX MULTIPLICATION
+#include "check.cuh"
 
-//naive CUDA kernel
-__global__ void cuda_naive_matmul(float *A, float *B, float *C, int m, int n, int k) {
-    //TODO: fill in the blanks to implement naive matrix multiplication
-    int row = ________________
-    int col = ________________
-    if _________ {
-        float sum = 0.0f;
-        for (______________)
-            ______________________
-        C[______________] = ___;
-    }
+__global__ void mm_naive_kernel(const float* __restrict__ A,
+const float* __restrict__ B,
+float* __restrict__ C,
+int M, int N, int K){
+// TODO: compute i (row) and j (col) from 2D grid/block
+// TODO: bounds guard
+// TODO: accumulate over k
 }
 
-//kernel launcher
-void launch_naive_kernel(float *d_A, float *d_B, float *d_C, int m, int n, int k) {
-    dim3 block(16, 16);
-    dim3 grid((n + block.x - 1) / block.x, (m + block.y - 1) / block.y);
-    cuda_naive_matmul<<<grid, block>>>(d_A, d_B, d_C, m, n, k);
-    cudaDeviceSynchronize();
+void mm_naive(const float* dA, const float* dB, float* dC,
+int M, int N, int K, dim3 block){
+dim3 grid((N + block.x - 1)/block.x,
+(M + block.y - 1)/block.y);
+mm_naive_kernel<<<grid, block>>>(dA, dB, dC, M, N, K);
+checkCuda(cudaGetLastError());
+checkCuda(cudaDeviceSynchronize());
 }

@@ -97,27 +97,6 @@ checkCuda(cudaDeviceSynchronize());
 
 ```
 
-Reference Solution
-
-```c
-__global__ void copy2D_kernel(const float* __restrict__ in,
-float* __restrict__ out,
-int rows, int cols){
-int r = blockIdx.y * blockDim.y + threadIdx.y;
-int c = blockIdx.x * blockDim.x + threadIdx.x;
-if (r >= rows || c >= cols) return;
-out[r*cols + c] = in[r*cols + c];
-}
-
-void copy2D(const float* d_in, float* d_out, int rows, int cols, dim3 block){
-dim3 grid((cols + block.x - 1)/block.x,
-(rows + block.y - 1)/block.y);
-copy2D_kernel<<<grid, block>>>(d_in, d_out, rows, cols);
-checkCuda(cudaGetLastError());
-checkCuda(cudaDeviceSynchronize());
-}
-
-```
 
 **Testing & Tips**
 
@@ -152,23 +131,6 @@ int M, int N, int K){
 
 ```
 
-**Reference Solution**
-
-```c
-void mm_cpu(const float* A, const float* B, float* C,
-int M, int N, int K){
-for (int i = 0; i < M; ++i){
-for (int j = 0; j < N; ++j){
-float acc = 0.f;
-for (int k = 0; k < K; ++k){
-acc += A[i*K + k] * B[k*N + j];
-}
-C[i*N + j] = acc;
-}
-}
-}
-
-```
 
 **Testing & Tips**
 
@@ -215,24 +177,6 @@ checkCuda(cudaDeviceSynchronize());
 
 ```
 
-Reference Solution
-
-```c
-__global__ void mm_naive_kernel(const float* __restrict__ A,
-const float* __restrict__ B,
-float* __restrict__ C,
-int M, int N, int K){
-int i = blockIdx.y * blockDim.y + threadIdx.y;
-int j = blockIdx.x * blockDim.x + threadIdx.x;
-if (i >= M || j >= N) return;
-float acc = 0.f;
-for (int k = 0; k < K; ++k){
-acc += A[i*K + k] * B[k*N + j];
-}
-C[i*N + j] = acc;
-}
-
-```
 
 **Notes on memory access**
 
@@ -277,58 +221,6 @@ int M, int N, int K, int vec, dim3 block){
 
 ```
 
-**Reference Solution (V=4)**
-
-```c
-template<int V>
-__global__ void mm_simd_kernel(const float* __restrict__ A,
-const float* __restrict__ B,
-float* __restrict__ C,
-int M, int N, int K){
-const int i = blockIdx.y * blockDim.y + threadIdx.y;
-const int jg = blockIdx.x * blockDim.x + threadIdx.x; // group index
-const int j0 = jg * V; // first col
-if (i >= M || j0 >= N) return;
-
-float acc[V] = {0};
-for (int k = 0; k < K; ++k){
-const float a = A[i*K + k];
-if (j0 + V <= N && (j0 % V == 0)){
-const float4* b4 = reinterpret_cast<const float4*>(&B[k*N + j0]);
-const float4 bv = *b4; // vector load
-acc[0] += a * bv.x; acc[1] += a * bv.y;
-acc[2] += a * bv.z; acc[3] += a * bv.w;
-} else {
-for (int t = 0; t < V && j0 + t < N; ++t)
-acc[t] += a * B[k*N + (j0 + t)];
-}
-}
-if (j0 + V <= N && (j0 % V == 0)){
-float4* c4 = reinterpret_cast<float4*>(&C[i*N + j0]);
-*c4 = make_float4(acc[0], acc[1], acc[2], acc[3]);
-} else {
-for (int t = 0; t < V && j0 + t < N; ++t)
-C[i*N + (j0 + t)] = acc[t];
-}
-}
-
-void mm_simd(const float* dA, const float* dB, float* dC,
-int M, int N, int K, int vec, dim3 block){
-if (vec == 4){
-dim3 grid(((N + 3)/4 + block.x - 1)/block.x,
-( M + block.y - 1)/block.y);
-mm_simd_kernel<4><<<grid, block>>>(dA, dB, dC, M, N, K);
-} else {
-// fall back to naive mapping per element group
-dim3 grid((N + block.x - 1)/block.x,
-(M + block.y - 1)/block.y);
-mm_naive_kernel<<<grid, block>>>(dA, dB, dC, M, N, K);
-}
-checkCuda(cudaGetLastError());
-checkCuda(cudaDeviceSynchronize());
-}
-
-```
 
 **Run** `./build/cs61cuda --task=simd --M=1024 --N=1024 --K=1024 --vec=4 --verify`
 
