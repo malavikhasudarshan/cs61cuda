@@ -5,9 +5,7 @@ __global__ void mm_naive_kernel(const float* __restrict__ A,
 const float* __restrict__ B,
 float* __restrict__ C,
 int M, int N, int K){
-// TODO: compute i (row) and j (col) from 2D grid/block
-// TODO: bounds guard
-// TODO: accumulate over k
+// TODO: fill this out
 }
 
 void mm_naive(const float* dA, const float* dB, float* dC,
