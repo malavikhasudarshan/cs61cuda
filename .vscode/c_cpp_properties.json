@@ -1,0 +1,36 @@
+{
+    "configurations": [
+        {
+            "name": "Mac",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/usr/local/cuda/include",
+                "/opt/cuda/include",
+                "/usr/local/cuda-*/include",
+                "/Developer/NVIDIA/CUDA-*/include",
+                "${env:CUDA_PATH}/include",
+                "${env:CUDA_HOME}/include"
+            ],
+            "defines": [
+                "__CUDACC__",
+                "__CUDA_ARCH__=700"
+            ],
+            "macFrameworkPath": [
+                "/System/Library/Frameworks",
+                "/Library/Frameworks"
+            ],
+            "compilerPath": "/usr/bin/clang++",
+            "cStandard": "c11",
+            "cppStandard": "c++11",
+            "intelliSenseMode": "macos-clang-x64",
+            "browse": {
+                "path": [
+                    "${workspaceFolder}"
+                ],
+                "limitSymbolsToIncludedHeaders": true
+            }
+        }
+    ],
+    "version": 4
+}
+

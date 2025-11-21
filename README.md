@@ -39,7 +39,18 @@ cs61cuda/
 
 **You will edit:** `src/cpu_baseline.cpp`, `src/cuda_copy.cu`, `src/cuda_naive.cu`, `src/cuda_simd.cu`.
 
-![][image1]
+## Grading Summary
+
+| Task | Description | Points |
+|------|-------------|--------|
+| 1 | Welcome to 61Cuda: Copy kernel (2D grid, indexing, bounds, coalescing) | 10 |
+| 2 | Baseline CPU matmul (triple-loop reference) | 15 |
+| 3 | CUDA naive matmul (1 output/thread) | 30 |
+| 4 | CUDA **SIMD** matmul (vectorized loads, no shared memory) | 30 |
+| 5 | **Performance engineering (optional)** | 15 EC |
+
+**Total:** 100 required + 15 extra credit.
+
 
 **Autograder policy.** We check correctness on hidden sizes, run times on a standard GPU, and basic style (clear bounds checks, no UB). We do not require a specific speedup, but we verify your kernels scale sensibly with size.
 
@@ -47,17 +58,121 @@ cs61cuda/
 
 ## **CUDA Primer (read first)**
 
+### **Core Concepts**
+
 * A **kernel** is a C/C++ function annotated `__global__` and launched with `<<<grid, block>>>`.  
 * Each launch creates a 2‑D/3‑D **grid** of **blocks**; each block contains many **threads**. Every thread runs the same kernel on different data.  
-* Built‑in variables inside kernels: `blockIdx.{x,y,z}`, `threadIdx.{x,y,z}`, `blockDim.{x,y,z}`, `gridDim.{x,y,z}`.  
-* Memory spaces:  
-  * **Global** (device DRAM): large, high‑latency; visible to all threads.  
-  * **Shared** (on‑chip, per‑block): small, low‑latency; visible to threads in the same block.  
-  * **Registers** (per‑thread): fastest.  
-* **Memory coalescing:** threads in a warp should access consecutive addresses to combine loads/stores into few transactions.  
-* **Synchronization:** `__syncthreads()` is a barrier for all threads in a block (not across blocks).
 
-You’ll always (1) map data to threads, (2) ensure bounds checks, (3) choose grid/block sizes, and (4) verify results.
+**Example:** `myKernel<<<dim3(2,2), dim3(16,16)>>>(args)` creates a 2×2 grid of blocks, each with 16×16 threads (total: 4 blocks × 256 threads = 1024 threads).
+
+* Built‑in variables inside kernels: `blockIdx.{x,y,z}`, `threadIdx.{x,y,z}`, `blockDim.{x,y,z}`, `gridDim.{x,y,z}`.  
+
+**2D Indexing Example:**
+```c
+int i = blockIdx.y * blockDim.y + threadIdx.y;  // row
+int j = blockIdx.x * blockDim.x + threadIdx.x;  // column
+```
+
+**Grid size calculation:** When dimensions don't divide evenly, round up:
+```c
+dim3 grid((width + block.x - 1) / block.x, (height + block.y - 1) / block.y);
+```
+
+### **Memory Hierarchy**
+
+* **Global** (device DRAM): large, high‑latency (~400-800 cycles); visible to all threads. Allocated with `cudaMalloc()`, accessed via pointers. Persists across kernel launches.
+* **Shared** (on‑chip, per‑block): small (~48KB per SM), low‑latency (~20-30 cycles); visible to threads in the same block. Declared with `__shared__`. Cleared between kernel launches.
+* **Registers** (per‑thread): fastest (~1 cycle), limited (~255 per thread). Automatic for local variables. Private to each thread.
+
+**Memory transfer patterns:**
+* Host → Device: `cudaMemcpy(dst, src, size, cudaMemcpyHostToDevice)`
+* Device → Host: `cudaMemcpy(dst, src, size, cudaMemcpyDeviceToHost)`
+* Device → Device: `cudaMemcpy(dst, src, size, cudaMemcpyDeviceToDevice)`
+
+### **Performance Concepts**
+
+* **Memory coalescing:** threads in a warp (32 threads) should access consecutive addresses to combine loads/stores into few transactions.  
+  * ✅ **Good:** `thread 0 → addr[0], thread 1 → addr[1], ..., thread 31 → addr[31]` (coalesced into 1-2 transactions)  
+  * ❌ **Bad:** `thread 0 → addr[0], thread 1 → addr[100], thread 2 → addr[200]...` (32 separate transactions)
+
+* **Warp:** A group of 32 threads that execute in lockstep (SIMT - Single Instruction, Multiple Threads). Threads in a warp share the same instruction stream. Warps are the fundamental unit of execution on the GPU.
+
+* **Synchronization:** `__syncthreads()` is a barrier for all threads in a block (not across blocks). Use before reading shared memory written by other threads. **Important:** All threads in a block must reach the barrier, or you'll deadlock.
+
+* **Occupancy:** The ratio of active warps to maximum warps per SM. Higher occupancy doesn't always mean better performance (register pressure, shared memory limits).
+
+### **Common Patterns & Best Practices**
+
+You'll always (1) map data to threads, (2) ensure bounds checks, (3) choose grid/block sizes, and (4) verify results.
+
+**Bounds checking pattern:**
+```c
+int idx = blockIdx.x * blockDim.x + threadIdx.x;
+if (idx >= N) return;  // Guard against out-of-bounds
+```
+
+**Block size guidelines:**
+* Use multiples of 32 (warp size): 32, 64, 128, 256, 512, 1024
+* For 2D: Common sizes are 8×8, 16×16, 32×32
+* Balance: Larger blocks = more shared memory per block, but fewer blocks = less parallelism
+
+### **Common Pitfalls**
+
+* **Forgetting bounds checks:** Always check `if (i >= rows || j >= cols) return;` when grid size rounds up.
+* **Wrong indexing order:** Use `threadIdx.x` for columns (fastest dimension) to enable coalescing in row-major layouts.
+* **Missing synchronization:** If threads write then read shared memory, use `__syncthreads()` between.
+* **Not checking errors:** Always call `checkCuda(cudaGetLastError())` after kernel launches.
+* **Race conditions:** Multiple threads writing to the same global memory location without atomics.
+* **Register spilling:** Too many local variables can cause register spilling to local memory (slow).
+
+### **Debugging Tips**
+
+* **Start small:** Test with 8×8 matrices before scaling up.
+* **Use printf in kernels** (sparingly) for small sizes: `if (threadIdx.x == 0 && blockIdx.x == 0) printf("value: %f\n", x);`
+* **Run cuda-memcheck:** `cuda-memcheck ./your_program` to catch memory errors, race conditions, and invalid accesses.
+* **Check occupancy:** Use `nvidia-smi` to monitor GPU usage, or profiling tools if available.
+* **Synchronize before copying:** Use `cudaDeviceSynchronize()` before copying results back to host.
+* **Verify with small inputs:** Always test correctness on small, known inputs first.
+
+### **CUDA Documentation & Finding Functions**
+
+**You will need to look up CUDA functions in the official documentation.** For each function you use:
+
+* **If the function has its own page** (e.g., `cudaMalloc`, `cudaMemcpy`), link directly to that page.
+* **If the function is part of a larger API section** (e.g., vector types like `float4`), link to the relevant section of the programming guide.
+
+**Key Documentation Resources:**
+
+* **[CUDA C++ Programming Guide](https://docs.nvidia.com/cuda/cuda-c-programming-guide/)** - Complete reference for CUDA programming
+  * [Memory Hierarchy](https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#memory-hierarchy) - Detailed memory model
+  * [Built-in Variables](https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#built-in-variables) - `blockIdx`, `threadIdx`, etc.
+  * [Vector Types](https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#vector-types) - `float4`, `int4`, etc.
+  * [Synchronization Functions](https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#synchronization-functions) - `__syncthreads()`, etc.
+
+* **[CUDA Runtime API](https://docs.nvidia.com/cuda/cuda-runtime-api/)** - Host-side functions
+  * [Memory Management](https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html) - `cudaMalloc`, `cudaFree`, `cudaMemcpy`
+  * [Device Management](https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__DEVICE.html) - `cudaDeviceSynchronize`, `cudaGetLastError`
+
+* **[CUDA Best Practices Guide](https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/)** - Performance optimization tips
+
+**Example:** If you use `cudaMalloc`, link to: https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html#group__CUDART__MEMORY_1g37d37965bfb4803b6d4e59ff26856356
+
+If you use `float4`, link to: https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#vector-types
+
+### **Quick Reference**
+
+| Concept | Syntax | Notes |
+|---------|--------|-------|
+| Kernel launch | `kernel<<<grid, block>>>(args)` | Grid/block are `dim3` |
+| Global memory alloc | `cudaMalloc(&ptr, size)` | Returns device pointer |
+| Copy to device | `cudaMemcpy(dst, src, size, cudaMemcpyHostToDevice)` | |
+| Copy from device | `cudaMemcpy(dst, src, size, cudaMemcpyDeviceToHost)` | |
+| Shared memory | `__shared__ float sdata[256]` | Per-block, ~48KB limit |
+| Synchronization | `__syncthreads()` | Block-level barrier |
+| Error check | `checkCuda(cudaGetLastError())` | After kernel launch |
+| Device sync | `cudaDeviceSynchronize()` | Wait for kernel completion |
+| Vector load | `float4 vec = *reinterpret_cast<float4*>(&ptr[i])` | Aligned access |
+| Vector store | `*reinterpret_cast<float4*>(&ptr[i]) = vec` | Aligned access |
 
 ## **Task 1 — Welcome to 61Cuda: 2D Copy Kernel (10 pts)**
 
@@ -240,7 +355,36 @@ Make it **faster**. Ideas:
 * **Mixed precision**: keep FP32 accumulate but try `__half` inputs (only if you also keep a FP32 correctness path for grading).  
 * **Software prefetch**: read the next `k` slice early.
 
-We’ll publish a lightweight leaderboard (GFLOP/s). Please write a short **README-perf.md** describing what you tried and why it helped (or didn’t)
+### **Performance Targets & Grading**
+
+We'll measure performance in **GFLOP/s** (billions of floating-point operations per second) on a standard GPU. The formula is: `GFLOP/s = (2 × M × N × K) / (time_in_seconds × 1e9)`.
+
+**Grading Rubric:**
+
+* **Full credit (15 pts):** ≥ 2.0× speedup over Task 4 baseline
+  * Example: If Task 4 runs at 500 GFLOP/s, you need ≥ 1000 GFLOP/s
+  * Must maintain correctness (within 1e-4 tolerance)
+  * Must include analysis in README-perf.md
+
+* **Partial credit (10 pts):** 1.5× - 2.0× speedup over Task 4 baseline
+  * Example: If Task 4 runs at 500 GFLOP/s, you need 750-1000 GFLOP/s
+  * Must maintain correctness
+  * Must include analysis in README-perf.md
+
+* **Minimal credit (5 pts):** 1.2× - 1.5× speedup over Task 4 baseline
+  * Example: If Task 4 runs at 500 GFLOP/s, you need 600-750 GFLOP/s
+  * Must maintain correctness
+  * Must include analysis in README-perf.md
+
+* **No credit (0 pts):** < 1.2× speedup, or correctness failures, or missing README-perf.md
+
+**Note:** Baseline Task 4 performance will vary by GPU. We'll normalize based on the reference implementation's performance on the grading hardware. The speedup ratios above are relative to your Task 4 implementation.
+
+We'll publish a lightweight leaderboard (GFLOP/s). Please write a short **README-perf.md** describing:
+* What optimizations you tried
+* Why each optimization helped (or didn't)
+* Performance measurements (GFLOP/s) for Task 4 baseline and your optimized version
+* Any insights about memory access patterns, occupancy, or other performance factors
 
 **Command‑Line Interface (Driver)**
 
