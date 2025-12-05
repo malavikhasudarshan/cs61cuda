@@ -19,10 +19,10 @@ cs61cuda/
 │ └─ matmul.h # shared function prototypes
 ├─ src/
 │ ├─ main.cpp # driver: parses flags, allocs, calls your code
-│ ├─ cpu_baseline.cpp # ✏️ Task 2: implement CPU matmul
-│ ├─ cuda_copy.cu # ✏️ Task 1: 2D copy kernel
-│ ├─ cuda_naive.cu # ✏️ Task 3: naive CUDA matmul (1 output/thread)
-│ ├─ cuda_simd.cu # ✏️ Task 4: vectorized CUDA matmul (no shared mem)
+│ ├─ task_1_cuda_copy.cu # ✏️ Task 1: 2D copy kernel
+│ ├─ task_2_cpu_baseline.cpp # ✏️ Task 2: implement CPU matmul
+│ ├─ task_3_cuda_naive.cu # ✏️ Task 3: naive CUDA matmul (1 output/thread)
+│ ├─ task_4_cuda_simd.cu # ✏️ Task 4: vectorized CUDA matmul (no shared mem)
 │ ├─ utils.cu # timers, error checks, random init, compare
 │ └─ check.cuh # CUDA error macros (provided)
 ├─ tests/
@@ -33,11 +33,11 @@ cs61cuda/
 ├─ scripts/
 │ ├─ build.sh # nvcc or cmake build helper
 │ └─ run_all.sh # runs all tasks & tests
-└─ README.md # quickstart
+└─ README.md # quick overview
 
 ```
 
-**You will edit:** `src/cpu_baseline.cpp`, `src/cuda_copy.cu`, `src/cuda_naive.cu`, `src/cuda_simd.cu`.
+**You will edit:** `src/task_1_cpu_baseline.cpp`, `src/task_2_cuda_copy.cu`, `src/task_3_cuda_naive.cu`, `src/ctask_4_cuda_simd.cu`.
 
 ## Grading Summary
 
