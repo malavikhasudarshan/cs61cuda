@@ -30,10 +30,32 @@ jobs:
       - name: Render Quarto
         run: |
           cd webpage
+          echo "Converting README.md to Quarto format..."
           python3 convert_to_quarto.py ../README.md webpage.qmd
-          quarto render webpage.qmd
+          echo "Checking files..."
+          ls -la
+          echo "Rendering Quarto document..."
+          # Temporarily rename _quarto.yml to avoid conflicts with frontmatter
+          mv _quarto.yml _quarto.yml.bak 2>/dev/null || true
+          quarto render webpage.qmd || (echo "Quarto render failed with exit code $?" && cat webpage.qmd | head -20 && exit 1)
+          # Restore _quarto.yml
+          mv _quarto.yml.bak _quarto.yml 2>/dev/null || true
+          echo "Checking render output..."
+          ls -la *.html
           # Rename to index.html for GitHub Pages
-          mv webpage.html index.html || cp webpage.html index.html
+          if [ -f webpage.html ]; then
+            mv webpage.html index.html
+            echo "✓ Renamed webpage.html to index.html"
+          else
+            echo "Error: webpage.html not found after rendering"
+            exit 1
+          fi
+          # Verify index.html was created
+          if [ ! -f index.html ]; then
+            echo "Error: index.html not found"
+            exit 1
+          fi
+          echo "✓ index.html created successfully"
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
