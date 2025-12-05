@@ -27,5 +27,7 @@ quarto render webpage.qmd
 
 echo ""
 echo "✓ HTML file generated: webpage.html"
-echo "✓ Open webpage.html in your browser to view"
+echo "✓ Renaming to index.html for GitHub Pages..."
+mv webpage.html index.html 2>/dev/null || cp webpage.html index.html
+echo "✓ Open index.html in your browser to view"
 
