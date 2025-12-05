@@ -1,0 +1,18 @@
+project:
+  type: website
+  output-dir: .
+
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    toc-title: "Contents"
+    number-sections: true
+    code-fold: true
+    code-tools: false
+    fig-width: 8
+    fig-height: 6
+    css: styles.css
+

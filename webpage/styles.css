@@ -1,0 +1,130 @@
+/* Custom styles to match CS61C website aesthetic */
+:root {
+  --sidebar-width: 300px;
+  --sidebar-background: #f8f9fa;
+  --sidebar-border: #dee2e6;
+  --link-color: #0066cc;
+  --link-hover: #004499;
+}
+
+.sidebar {
+  background-color: var(--sidebar-background);
+  border-right: 1px solid var(--sidebar-border);
+}
+
+.sidebar .sidebar-title {
+  font-weight: 600;
+  font-size: 1.1em;
+  padding: 1rem;
+  border-bottom: 1px solid var(--sidebar-border);
+}
+
+.sidebar .sidebar-menu a {
+  color: var(--link-color);
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  display: block;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.sidebar .sidebar-menu a:hover {
+  background-color: #e9ecef;
+  color: var(--link-hover);
+}
+
+.sidebar .sidebar-menu a.active {
+  background-color: #dee2e6;
+  font-weight: 500;
+}
+
+/* Main content area */
+.main-content {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* Code blocks */
+pre {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 1rem;
+}
+
+code {
+  background-color: #f8f9fa;
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+/* Tables */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+}
+
+table th,
+table td {
+  border: 1px solid #dee2e6;
+  padding: 0.75rem;
+  text-align: left;
+}
+
+table th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+}
+
+/* Headings */
+h1 {
+  border-bottom: 2px solid #dee2e6;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+h2 {
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #dee2e6;
+}
+
+h3 {
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+/* Links */
+a {
+  color: var(--link-color);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+  color: var(--link-hover);
+}
+
+/* Lists */
+ul, ol {
+  margin: 1rem 0;
+  padding-left: 2rem;
+}
+
+li {
+  margin: 0.5rem 0;
+}
+
+/* Blockquotes */
+blockquote {
+  border-left: 4px solid #dee2e6;
+  padding-left: 1rem;
+  margin: 1rem 0;
+  color: #6c757d;
+  font-style: italic;
+}
+

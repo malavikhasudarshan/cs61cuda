@@ -1,6 +1,23 @@
-Welcome to **CS61Cuda\!\!** This is a mini‑project that introduces you to GPU programming with CUDA by building up to a fast matrix multiply. You’ll start with a CPU reference, write your first CUDA kernels, learn to reason about grids/blocks/threads, and finally add simple vectorization (SIMD) on the GPU. An optional performance sandbox lets you explore optimizations for bragging rights.
+---
+title: "CS61Cuda Project: Matmul & CUDA Fundamentals"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    toc-title: "Contents"
+    number-sections: true
+    code-fold: true
+    code-tools: false
+    theme: cosmo
+    css: styles.css
+    fig-width: 8
+    fig-height: 6
+---
 
-## **Learning Goals**
+Welcome to **CS61Cuda!!** This is a mini‑project that introduces you to GPU programming with CUDA by building up to a fast matrix multiply. You’ll start with a CPU reference, write your first CUDA kernels, learn to reason about grids/blocks/threads, and finally add simple vectorization (SIMD) on the GPU. An optional performance sandbox lets you explore optimizations for bragging rights.
+
+## Learning Goals
 
 * Map data‑parallel work to CUDA’s **grid/block/thread** hierarchy.  
 * Practice **indexing** and **bounds checks** in 1D/2D.  
@@ -8,7 +25,7 @@ Welcome to **CS61Cuda\!\!** This is a mini‑project that introduces you to GPU 
 * See the benefits of **TLP** (thread‑level parallelism) and **DLP** (data‑level/SIMD) on the GPU.  
 * Read simple performance counters and reason about **memory‑ vs compute‑bound** kernels.
 
-## **Repo Layout & What You Edit**
+## Repo Layout & What You Edit
 
 ```c
 cs61cuda/
@@ -54,9 +71,9 @@ cs61cuda/
 
 **Collaboration.** Discuss ideas high‑level with peers; code must be your own. Cite any online sources you consulted.
 
-## **CUDA Primer (read first)**
+## CUDA Primer (read first)
 
-### **Core Concepts**
+### Core Concepts
 
 * A **kernel** is a C/C++ function annotated `__global__` and launched with `<<<grid, block>>>`.  
 * Each launch creates a 2‑D/3‑D **grid** of **blocks**; each block contains many **threads**. Every thread runs the same kernel on different data.  
@@ -76,7 +93,7 @@ int j = blockIdx.x * blockDim.x + threadIdx.x;  // column
 dim3 grid((width + block.x - 1) / block.x, (height + block.y - 1) / block.y);
 ```
 
-### **Memory Hierarchy**
+### Memory Hierarchy
 
 * **Global** (device DRAM): large, high‑latency (~400-800 cycles); visible to all threads. Allocated with `cudaMalloc()`, accessed via pointers. Persists across kernel launches.
 * **Shared** (on‑chip, per‑block): small (~48KB per SM), low‑latency (~20-30 cycles); visible to threads in the same block. Declared with `__shared__`. Cleared between kernel launches.
@@ -87,7 +104,7 @@ dim3 grid((width + block.x - 1) / block.x, (height + block.y - 1) / block.y);
 * Device → Host: `cudaMemcpy(dst, src, size, cudaMemcpyDeviceToHost)`
 * Device → Device: `cudaMemcpy(dst, src, size, cudaMemcpyDeviceToDevice)`
 
-### **Performance Concepts**
+### Performance Concepts
 
 * **Memory coalescing:** threads in a warp (32 threads) should access consecutive addresses to combine loads/stores into few transactions.  
   * ✅ **Good:** `thread 0 → addr[0], thread 1 → addr[1], ..., thread 31 → addr[31]` (coalesced into 1-2 transactions)  
@@ -99,7 +116,7 @@ dim3 grid((width + block.x - 1) / block.x, (height + block.y - 1) / block.y);
 
 * **Occupancy:** The ratio of active warps to maximum warps per SM. Higher occupancy doesn't always mean better performance (register pressure, shared memory limits).
 
-### **Common Patterns & Best Practices**
+### Common Patterns & Best Practices
 
 You'll always (1) map data to threads, (2) ensure bounds checks, (3) choose grid/block sizes, and (4) verify results.
 
@@ -114,7 +131,7 @@ if (idx >= N) return;  // Guard against out-of-bounds
 * For 2D: Common sizes are 8×8, 16×16, 32×32
 * Balance: Larger blocks = more shared memory per block, but fewer blocks = less parallelism
 
-### **Common Pitfalls**
+### Common Pitfalls
 
 * **Forgetting bounds checks:** Always check `if (i >= rows || j >= cols) return;` when grid size rounds up.
 * **Wrong indexing order:** Use `threadIdx.x` for columns (fastest dimension) to enable coalescing in row-major layouts.
@@ -123,7 +140,7 @@ if (idx >= N) return;  // Guard against out-of-bounds
 * **Race conditions:** Multiple threads writing to the same global memory location without atomics.
 * **Register spilling:** Too many local variables can cause register spilling to local memory (slow).
 
-### **Debugging Tips**
+### Debugging Tips
 
 * **Start small:** Test with 8×8 matrices before scaling up.
 * **Use printf in kernels** (sparingly) for small sizes: `if (threadIdx.x == 0 && blockIdx.x == 0) printf("value: %f\n", x);`
@@ -132,7 +149,7 @@ if (idx >= N) return;  // Guard against out-of-bounds
 * **Synchronize before copying:** Use `cudaDeviceSynchronize()` before copying results back to host.
 * **Verify with small inputs:** Always test correctness on small, known inputs first.
 
-### **CUDA Documentation & Finding Functions**
+### CUDA Documentation & Finding Functions
 
 **You will need to look up CUDA functions in the official documentation.** For each function you use:
 
@@ -157,7 +174,7 @@ if (idx >= N) return;  // Guard against out-of-bounds
 
 If you use `float4`, link to: https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#vector-types
 
-### **Quick Reference**
+### Quick Reference
 
 | Concept | Syntax | Notes |
 |---------|--------|-------|
@@ -172,19 +189,19 @@ If you use `float4`, link to: https://docs.nvidia.com/cuda/cuda-c-programming-gu
 | Vector load | `float4 vec = *reinterpret_cast<float4*>(&ptr[i])` | Aligned access |
 | Vector store | `*reinterpret_cast<float4*>(&ptr[i]) = vec` | Aligned access |
 
-## **Task 1 — Welcome to 61Cuda: 2D Copy Kernel (10 pts)**
+## Task 1 — Welcome to 61Cuda: 2D Copy Kernel (10 pts)
 
-### **Conceptual Overview**
+### Conceptual Overview
 
 Warm up with indexing and coalesced global memory access. You’ll copy a dense matrix from device input to device output using a 2D grid of 2D blocks, one element per thread.
 
-### **Data Flow**
+### Data Flow
 
 * **Input:** `in ∈ R^{rows×cols}` (row‑major `in[r*cols + c]`), allocated in **device** memory.  
 * **Processing:** For each `(r,c)` covered by a thread, read `in[r,c]` and write it to `out[r,c]`. Use 2‑D indexing and guard against out‑of‑bounds.  
 * **Output:** `out ∈ R^{rows×cols}` identical to `in` (device memory).
 
-### **Your Task**
+### Your Task
 
 Implement `copy2D_kernel` and the host wrapper `copy2D(...)`
 
@@ -216,19 +233,19 @@ checkCuda(cudaDeviceSynchronize());
 * Prefer `threadIdx.x` to index **columns** to encourage coalesced row‑major accesses.  
 * Run: `./build/cs61cuda --task=copy --M=64 --N=128 --verify`.
 
-## **Task 2 — CPU Baseline Matmul (15 pts)**
+## Task 2 — CPU Baseline Matmul (15 pts)
 
-### **Conceptual Overview**
+### Conceptual Overview
 
 Implement a correct triple‑loop matrix multiply in row‑major order. This is the correctness oracle for later tasks.
 
-### **Data Flow**
+### Data Flow
 
 * **Input:** `A ∈ R^{M×K}`, `B ∈ R^{K×N}` (host memory, row‑major).  
 * **Processing:** For every `(i,j)`, compute `C[i,j] = Σ_{k=0..K-1} A[i,k] * B[k,j]`.  
 * **Output:** `C ∈ R^{M×N}` (host memory).
 
-### **Your Task**
+### Your Task
 
 Fill `mm_cpu(...)` in `src/cpu_baseline.cpp`.
 
@@ -249,19 +266,19 @@ int M, int N, int K){
 
 * Use small sizes first (e.g., 8×8×8). GPU results in later tasks are compared against this function with tolerance 1e‑4.
 
-## **Task 3 — CUDA Naive Matmul (30 pts)**
+## Task 3 — CUDA Naive Matmul (30 pts)
 
-### **Conceptual Overview**
+### Conceptual Overview
 
 Parallelize Task 2 on the GPU: map each output element `C[i,j]` to a single thread. This exposes **thread‑level parallelism (TLP)**; performance is often limited by memory bandwidth.
 
-### **Data Flow**
+### Data Flow
 
 * **Input:** `A ∈ R^{M×K}`, `B ∈ R^{K×N}` (device memory), populated from host.  
 * **Processing:** Each thread computes one output `C[i,j]` by streaming the `k` dimension.  
 * **Output:** `C ∈ R^{M×N}` (device memory), copied back to host by the driver when verifying.
 
-### **Your Task**
+### Your Task
 
 Implement `mm_naive_kernel` and the host launcher `mm_naive(...)`.
 
@@ -297,19 +314,19 @@ checkCuda(cudaDeviceSynchronize());
 
 **Run** `./build/cs61cuda --task=naive --M=512 --N=512 --K=512 --verify`
 
-## **Task 4 — CUDA SIMD Matmul (Vectorized, No Shared Memory) (30 pts)**
+## Task 4 — CUDA SIMD Matmul (Vectorized, No Shared Memory) (30 pts)
 
-### **Conceptual Overview**
+### Conceptual Overview
 
 Augment TLP with simple **data‑level parallelism (DLP)**: each thread computes a short contiguous vector of outputs in a row using vector loads/stores (e.g., `float4`). No shared memory yet.
 
-### **Data Flow**
+### Data Flow
 
 * **Input:** `A ∈ R^{M×K}`, `B ∈ R^{K×N}` (device).  
 * **Processing:** A thread at `(i, j0_group)` produces `V` outputs `C[i, j0..j0+V-1]`. Inner loop streams over `k`, reading one scalar `A[i,k]` and a vector of `V` neighbors from row `B[k, :]`.  
 * **Output:** `C ∈ R^{M×N}` (device).
 
-### **Your Task**
+### Your Task
 
 Implement `mm_simd_kernel<V>()` and its launcher. Default `V=4`; handle tails where `N % V ≠ 0`.
 
@@ -342,7 +359,7 @@ int M, int N, int K, int vec, dim3 block){
 * Why does vectorizing along columns improve coalescing for loads from `B` and stores to `C`?  
 * What changes would shared‑memory tiling introduce (Task 5 EC)?
 
-## **Task 5 — (Optional) Performance Engineering (15 EC)**
+## Task 5 — (Optional) Performance Engineering (15 EC)
 
 Make it **faster**. Ideas:
 
@@ -353,7 +370,7 @@ Make it **faster**. Ideas:
 * **Mixed precision**: keep FP32 accumulate but try `__half` inputs (only if you also keep a FP32 correctness path for grading).  
 * **Software prefetch**: read the next `k` slice early.
 
-### **Performance Targets & Grading**
+### Performance Targets & Grading
 
 We'll measure performance in **GFLOP/s** (billions of floating-point operations per second) on a standard GPU. The formula is: `GFLOP/s = (2 × M × N × K) / (time_in_seconds × 1e9)`.
 
@@ -397,7 +414,7 @@ We'll publish a lightweight leaderboard (GFLOP/s). Please write a short **README
 * `--vec` controls SIMD width in Task 4; grader uses 4\.  
 * `--verify` runs `mm_cpu` then compares results (L2 relative error ≤ 1e-4).
 
-## **Correctness & Floating‑Point Notes**
+## Correctness & Floating‑Point Notes
 
 * We compare with a small absolute+relative tolerance (`1e-4`).  
 * Random inputs in `[-1, 1]` with fixed seed.  
@@ -405,7 +422,7 @@ We'll publish a lightweight leaderboard (GFLOP/s). Please write a short **README
 
 ---
 
-## **Debugging Checklist**
+## Debugging Checklist
 
 * After each kernel launch:
 
@@ -419,14 +436,14 @@ checkCuda(cudaGetLastError());
 * Try `cuda-memcheck` for invalid addresses / race conditions.  
 * Start small (e.g., `M=N=K=8`) then scale.
 
-## **Style & Submission**
+## Style & Submission
 
 * Clear variable names (`i,j,k`, `M,N,K`).  
 * Comments: what the mapping is, what each thread computes, any assumptions.  
 * No undefined behavior (no out‑of‑bounds pointer math, no aliasing shenanigans).  
 * Submit your edited `.cpp/.cu` files and **README.md** answering the reflection prompts below.
 
-### **Reflection (graded in Task 5 rubric even if you skip perf EC)**
+### Reflection (graded in Task 5 rubric even if you skip perf EC)
 
 1. Where is your naive kernel memory‑bound? Which array dominates traffic and why?  
 2. Why does vectorizing along columns improve coalescing? What’s the trade‑off?  
@@ -434,7 +451,7 @@ checkCuda(cudaGetLastError());
 
 ---
 
-## **Reference: Shapes & Indexing**
+## Reference: Shapes & Indexing
 
 Row‑major:
 
@@ -453,7 +470,7 @@ int j = blockIdx.x * blockDim.x + threadIdx.x;
 
 ```
 
-## **Rubric Details**
+## Rubric Details
 
 **Task 1 (10)**
 
